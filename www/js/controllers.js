@@ -4,14 +4,32 @@ angular.module('songhop.controllers', ['ionic', 'songhop.services'])
 /*
 Controller for the discover page
 */
-.controller('DiscoverCtrl', function($scope, $timeout, User, Recommendations) {
-    //Our first three songs
+.controller('DiscoverCtrl', function($scope, $timeout, User, $ionicLoading, Recommendations) {
+    
+    var showLoading =  function () {
+        $ionicLoading.show({
+            template: '<i class="ion-loading-c"></i>',
+            noBackdrop: true
+        })
+    };
+
+    var hideLoading = function () {
+        $ionicLoading.hide();
+    };
+
+    showLoading();
+    
     Recommendations.init()
         .then(function () {
-       $scope.currentSong = Recommendations.queue[0];
-       Recommendations.playCurrentSong();
-    });
+            $scope.currentSong = Recommendations.queue[0];
 
+            return Recommendations.playCurrentSong();
+        }).then(function () {
+
+            hideLoading();
+
+            $scope.currentSong.loaded = true;
+        });
 
     $scope.sendFeedback = function (bool) {
 
@@ -27,7 +45,9 @@ Controller for the discover page
             $scope.currentSong = Recommendations.queue[0];
         }, 250);
 
-        Recommendations.playCurrentSong();
+        Recommendations.playCurrentSong().then(function () {
+            $scope.currentSong.loaded = true;
+        });
     };
 
     $scope.nextAlbumImg = function () {
@@ -42,12 +62,16 @@ Controller for the discover page
 /*
 Controller for the favorites page
 */
-.controller('FavoritesCtrl', function($scope, User) {
+.controller('FavoritesCtrl', function($scope, User, $window) {
 
     $scope.favorites = User.favorites;
 
     $scope.removeSong = function (song, index) {
         User.removeSongFromFavorites(song, index);
+    };
+
+    $scope.openSong = function (song) {
+        $window.open(song.open_url, "_system");
     }
 })
 
@@ -55,10 +79,13 @@ Controller for the favorites page
 /*
 Controller for our tab bar
 */
-.controller('TabsCtrl', function($scope, Recommendations) {
+.controller('TabsCtrl', function($scope, Recommendations, User) {
+
+    $scope.favCount = User.favoriteCount;
 
     //stop audio when going to favorites page
     $scope.enteringFavorites = function () {
+        User.newFavorites = 0;
         Recommendations.haltAudio();
     };
 

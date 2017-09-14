@@ -3,13 +3,15 @@ angular.module('songhop.services', [])
     .factory('User', function () {
    
     var o = {
-        favorites: []
+        favorites: [],
+        newFavorites: 0
     };
     
     o.addSongToFavorites = function (song) {
         if(!song)return false;
 
         o.favorites.unshift(song);
+        o.newFavorites++;
     };
 
     o.removeSongFromFavorites = function (song, index) {
@@ -17,6 +19,10 @@ angular.module('songhop.services', [])
 
         //remove song from array
         o.favorites.splice(index, 1);
+    };
+
+    o.favoriteCount = function () {
+        return o.newFavorites;
     };
 
     return o;
@@ -27,7 +33,7 @@ angular.module('songhop.services', [])
         var media;
 
         var o = {
-            queue: []
+            queue: [],
         };
 
         o.init = function () {
