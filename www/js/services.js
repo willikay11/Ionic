@@ -1,17 +1,79 @@
-angular.module('songhop.services', [])
+angular.module('songhop.services', ['ionic.utils'])
 
-    .factory('User', function () {
+    .factory('User', function ($http, SERVER, $q, $localstorage) {
    
     var o = {
+        username: false,
+        session_id: false,
         favorites: [],
         newFavorites: 0
     };
-    
+
+    o.auth = function (username, signingUp) {
+        var authRoute;
+
+        if(signingUp)
+        {
+            authRoute = 'signup'
+        }
+        else
+        {
+            authRoute = 'login'
+        }
+
+        return $http.post(SERVER.url + '/' + authRoute, {username : username})
+            .success(function (data) {
+                o.setSession(data.username, data.session_id, data.favorites);
+        });
+    };
+
+    o.checkSession = function () {
+        var defer = $q.defer();
+
+        if(o.session_id)
+        {
+            defer.resolve(true);
+        }
+        else
+        {
+            var user = $localstorage.getObject('user');
+
+            if(user.username)
+            {
+                o.setSession(user.username, user.session_id);
+                o.populateFavorites().then(function () {
+                    defer.resolve(true)
+                })
+            }
+            else
+            {
+                defer.resolve(false);
+            }
+        }
+
+        return defer.promise;
+    };
+
+    o.destroySession = function () {
+        $localstorage.setObject('user', {});
+
+        o.username = false;
+
+        o.session_id = false;
+
+        o.favorites = [];
+
+        o.newFavorites = 0;
+    };
+
     o.addSongToFavorites = function (song) {
         if(!song)return false;
 
         o.favorites.unshift(song);
+
         o.newFavorites++;
+
+        return $http.post(SERVER.url + '/favorites', {session_id : o.session_id, song_id : song.song_id});
     };
 
     o.removeSongFromFavorites = function (song, index) {
@@ -19,10 +81,34 @@ angular.module('songhop.services', [])
 
         //remove song from array
         o.favorites.splice(index, 1);
+
+        return $http({
+            method : 'DELETE',
+            url : SERVER.url + '/favorites',
+            params: {session_id : o.session_id, song_id : song.song_id}
+        });
     };
 
     o.favoriteCount = function () {
         return o.newFavorites;
+    };
+
+    o.populateFavorites = function () {
+        return $http({
+            method: 'GET',
+            url: SERVER.url + '/favorites',
+            params: { session_id: o.session_id}
+        }).success(function (data) {
+            o.favorites = data;
+        });
+    };
+
+    o.setSession = function (username, session_id, favorites) {
+        if(username) o.username = username;
+        if(session_id) o.session_id = session_id;
+        if(favorites) o.favorites = favorites;
+
+        $localstorage.setObject('user', {username : username, session_id : session_id});
     };
 
     return o;
